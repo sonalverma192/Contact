@@ -1,4 +1,5 @@
 const express = require('express');
+const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const contactRoutes = require('./routes/contactRoutes');
@@ -11,6 +12,9 @@ connectDB();
 
 // Initialize the Express application
 const app = express();
+
+// Enable Cross-Origin Resource Sharing (CORS)
+app.use(cors());
 
 // Middleware to automatically parse incoming JSON request bodies
 app.use(express.json());

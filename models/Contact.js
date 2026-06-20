@@ -22,6 +22,7 @@ const contactSchema = new mongoose.Schema(
     },
     gender: {
       type: String,
+      enum: ['Male', 'Female'],
       trim: true,
     },
   },

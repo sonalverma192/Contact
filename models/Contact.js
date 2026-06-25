@@ -25,6 +25,14 @@ const contactSchema = new mongoose.Schema(
       enum: ['Male', 'Female'],
       trim: true,
     },
+    profilePicUrl: {
+      type: String,
+      trim: true,
+    },
+    profilePicPublicId: {
+      type: String,
+      trim: true,
+    },
   },
   {
     timestamps: true, // Automatically manages createdAt and updatedAt fields

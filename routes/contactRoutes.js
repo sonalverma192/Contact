@@ -2,19 +2,38 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const Contact = require('../models/Contact');
+const multer = require('multer');
+const { uploadToCloudinary, deleteFromCloudinary } = require('../config/cloudinary');
+
+// Configure multer for memory storage
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // limit to 5MB
+});
 
 /**
  * @route   POST /api/contacts/add
  * @desc    Create a new contact
  * @access  Public
  */
-router.post('/add', async (req, res) => {
+router.post('/add', upload.single('profilePic'), async (req, res) => {
   try {
     const { name, email, phone, address, gender } = req.body;
 
     // Simple validation to ensure Name is provided
     if (!name) {
       return res.status(400).json({ message: 'Name is a required field' });
+    }
+
+    let profilePicUrl = '';
+    let profilePicPublicId = '';
+
+    // Upload to Cloudinary if a file was sent
+    if (req.file) {
+      const uploadResult = await uploadToCloudinary(req.file.buffer);
+      profilePicUrl = uploadResult.secure_url;
+      profilePicPublicId = uploadResult.public_id;
     }
 
     // Create a new contact instance
@@ -24,6 +43,8 @@ router.post('/add', async (req, res) => {
       phone,
       address,
       gender,
+      profilePicUrl,
+      profilePicPublicId,
     });
 
     // Save the contact to the database
@@ -85,7 +106,7 @@ router.get('/:id', async (req, res) => {
  * @desc    Update a contact's details by ID
  * @access  Public
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', upload.single('profilePic'), async (req, res) => {
   try {
     const { id } = req.params;
     const { name, email, phone, address, gender } = req.body;
@@ -95,17 +116,34 @@ router.put('/:id', async (req, res) => {
       return res.status(400).json({ message: 'Invalid Contact ID format' });
     }
 
-    // Find contact by ID and update it. Run schema validators to ensure name isn't set to empty.
-    const updatedContact = await Contact.findByIdAndUpdate(
-      id,
-      { name, email, phone, address, gender },
-      { new: true, runValidators: true }
-    );
-
-    // Return 404 if contact does not exist
-    if (!updatedContact) {
+    // Find the contact first to see if it exists and to check the existing profile picture
+    const contact = await Contact.findById(id);
+    if (!contact) {
       return res.status(404).json({ message: 'Contact not found' });
     }
+
+    const updateData = { name, email, phone, address, gender };
+
+    // If a new file is uploaded, set the new one and delete the old one
+    if (req.file) {
+      const uploadResult = await uploadToCloudinary(req.file.buffer);
+      updateData.profilePicUrl = uploadResult.secure_url;
+      updateData.profilePicPublicId = uploadResult.public_id;
+
+      // Delete the old profile picture from Cloudinary if it exists
+      if (contact.profilePicPublicId) {
+        await deleteFromCloudinary(contact.profilePicPublicId);
+      }
+    }
+    // If no new file is uploaded, updateData won't contain profilePicUrl or profilePicPublicId,
+    // retaining the existing database values.
+
+    // Update contact. Run schema validators to ensure name isn't set to empty.
+    const updatedContact = await Contact.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true, runValidators: true }
+    );
 
     return res.status(200).json(updatedContact);
   } catch (error) {
@@ -131,13 +169,19 @@ router.delete('/:id', async (req, res) => {
       return res.status(400).json({ message: 'Invalid Contact ID format' });
     }
 
-    // Find and delete the contact by its ID
-    const deletedContact = await Contact.findByIdAndDelete(id);
-
-    // Return 404 if contact does not exist
-    if (!deletedContact) {
+    // Find contact to check if there is an image to delete
+    const contact = await Contact.findById(id);
+    if (!contact) {
       return res.status(404).json({ message: 'Contact not found' });
     }
+
+    // Delete image from Cloudinary if it exists
+    if (contact.profilePicPublicId) {
+      await deleteFromCloudinary(contact.profilePicPublicId);
+    }
+
+    // Delete the contact from database
+    await Contact.findByIdAndDelete(id);
 
     return res.status(200).json({ message: 'Contact deleted successfully' });
   } catch (error) {

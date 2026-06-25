@@ -54,14 +54,17 @@ router.post('/add', upload.single('profilePic'), async (req, res) => {
     const savedContact = await newContact.save();
     return res.status(201).json(savedContact);
   } catch (error) {
+    console.log("BODY =", req.body);
+    console.log("FILE =", req.file);
     // Handle server errors
     return res.status(500).json({ message: 'Server error occurred while adding contact', error: error.message });
+
   }
 });
 
 /**
  * @route   GET /api/contacts
- * @desc    Get all contacts
+ * @desc    Get all contact
  * @access  Public
  */
 router.get('/', async (req, res) => {

@@ -19,7 +19,10 @@ const upload = multer({
  */
 router.post('/add', upload.single('profilePic'), async (req, res) => {
   try {
-    const { name, email, phone, address, gender } = req.body;
+    let { name, email, phone, address, gender } = req.body;
+    if (!name && req.body.fullName) {
+      name = req.body.fullName;
+    }
 
     // Simple validation to ensure Name is provided
     if (!name) {
@@ -109,7 +112,10 @@ router.get('/:id', async (req, res) => {
 router.put('/:id', upload.single('profilePic'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, phone, address, gender } = req.body;
+    let { name, email, phone, address, gender } = req.body;
+    if (!name && req.body.fullName) {
+      name = req.body.fullName;
+    }
 
     // Handle invalid MongoDB ObjectId format
     if (!mongoose.Types.ObjectId.isValid(id)) {
